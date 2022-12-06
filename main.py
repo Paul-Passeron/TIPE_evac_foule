@@ -82,7 +82,7 @@ class room():
 
     def get_probabilities(self, x):
         dic = {(i, j): self.get_unnormalized_prob(x, Cell(i, j))
-               for i in range(-1, 2) for j in range(-1, 2) if (i != j or i == 1)}
+               for i in range(-1, 2) for j in range(-1, 2) if (i != j or i != 0)}
         inv_N = 0
         for k in dic:
             inv_N += dic[k]
@@ -119,7 +119,7 @@ class room():
         for k in dic_of_probs:
             if closest_k == None:
                 closest_k = k
-            elif abs(closest_k-rand_n) < abs(closest_k-rand_n):
+            elif abs(k-rand_n) < abs(closest_k-rand_n):
                 closest_k = k
         a, b = dic_of_probs[closest_k]
         return Cell(a, b)
@@ -152,10 +152,17 @@ class room():
 
         #Conflict solution and motion
         for (i, j) in self.cells:
-            if self.cells[(i, j)]. n == 0:
-                w_l = self.cells[(i, j)].waiting_list
+            current_cell = self.cells[(i, j)]
+            if current_cell.n == 0:
+                w_l = current_cell.waiting_list
                 if len(w_l) == 1:
-                    pass;                                                                       
+                    #move cell because is alone in waiting list of empty cell
+                    self.cells[(i, j)].n = 0
+                    target_pos = (i+current_cell.predicted_direction[0], j+current_cell.predicted_direction[1])
+                    self.cells[target_pos].n = 1
+                else:
+                    proba = random.randint(0, self.mu*1000)
+
         # c.next_update += self.period * penalty
 
 
