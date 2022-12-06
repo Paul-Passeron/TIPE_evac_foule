@@ -46,14 +46,15 @@ class room():
         self.alpha = 1
         self.beta = 1
         self.gamma = 1
+        self.mu = 1
         self.time_unit = 0.7
         self.period = 1
 
     def add_cells(self, c1, c2) -> tuple[int, int]:
         if c1 == None:
-            return c2
+            return (c2.i, c2.j)
         if c2 == None:
-            return c1
+            return (c1.i, c1.j)
         i1, j1 = c1.i, c1.j
         i2, j2 = c2.i, c2.j
         return ((i1+i2), (j1+j2))
@@ -128,8 +129,8 @@ class room():
         for i, j in self.cells:
             cell = self.cells[(i, j)]
             if i != c.i and j != c.j:
-              if cell.bound_to == (c.i, c.j):
-                L.append((i, j))
+                if cell.bound_to == (c.i, c.j):
+                    L.append((i, j))
         return L
 
     def update_cells(self, cell_array):
@@ -147,18 +148,27 @@ class room():
                 self.cells[(a, b)].waiting_list.append((i, j))
             else:
                 self.cells[(a, b)].is_blocker_of.append((i, j))
-                self.cells[(i, j)].bound_to=[(a, b)]
-            c.next_update += self.period * penalty
+                self.cells[(i, j)].bound_to = [(a, b)]
+
+        #Conflict solution and motion
+        for (i, j) in self.cells:
+            if self.cells[(i, j)]. n == 0:
+                w_l = self.cells[(i, j)].waiting_list
+                if len(w_l) == 1:
+                    pass;                                                                       
+        # c.next_update += self.period * penalty
+
 
 def populate(room, n):
-    room.total_n_of_persons=n
+    room.total_n_of_persons = n
     for _ in range(n):
-        i=random.randint(0, room.dimensions[0])
-        j=random.randint(0, room.dimensions[1])
+        i = random.randint(0, room.dimensions[0])
+        j = random.randint(0, room.dimensions[1])
         while room.cells[(i, j)].n == 1:
-            i=random.randint(0, room.dimensions[0])
-            j=random.randint(0, room.dimensions[1])
-        room.cells[(i, j)].n=1
+            i = random.randint(0, room.dimensions[0])
+            j = random.randint(0, room.dimensions[1])
+        room.cells[(i, j)].n = 1
+
 
 def get_array_to_display(room):
     return [[(1-room.cells[(i, j)].n) for i in range(room.dimensions[0])]for j in range(room.dimensions[1])]
