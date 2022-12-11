@@ -157,11 +157,33 @@ class room():
                 w_l = current_cell.waiting_list
                 if len(w_l) == 1:
                     #move cell because is alone in waiting list of empty cell
-                    self.cells[(i, j)].n = 0
-                    target_pos = (i+current_cell.predicted_direction[0], j+current_cell.predicted_direction[1])
-                    self.cells[target_pos].n = 1
+                    self.cells[(w_l[0].i, w_l[0].j)].n = 0
+                    self.cells[(i, j)].n = 1
                 else:
-                    proba = random.randint(0, self.mu*1000)
+                    proba = random.randint(0, 1000)
+                    if proba <= self.mu * 1000:
+                        #disable all agents movement
+                        pass
+                    else:
+                        #choose one random agent to move
+                        random_agent = w_l[random.randint(0, len(w_l)-1)]
+                        random_agent_index = (random_agent.i, random_agent.j)
+                        self.cells[random_agent_index].n = 0
+                        self.cells[(i, j)].n = 1
+                        #Implementing 3/2 penalty for diagonal movement
+                        if abs(random_agent.i - i) + abs(random_agent.j - j) >= 2:
+                            penalty = 3/2
+                        #rndom_agent moved so we have to unbound every cell that
+                        #was bound to random_agent.
+                        for cell_to_unbound in random_agent.is_blocker_of:
+                            cell_to_unbound_index = (cell_to_unbound.i, cell_to_unbound.j)
+                            self.cells[cell_to_unbound_index].bound_to = []
+                        self.cells[random_agent_index].is_blocker_of = []
+                        #Resetting waiting list of random_agent cell
+                        self.cells[random_agent_index].waiting_list = []
+
+
+
 
         # c.next_update += self.period * penalty
 
