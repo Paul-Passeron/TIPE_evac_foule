@@ -1,6 +1,6 @@
 import math
 import random
-from nltk.probability import FreqDist, MLEProbDist
+#from nltk.probability import FreqDist, MLEProbDist
 import matplotlib.pyplot as plt
 
 class Cell:
@@ -18,17 +18,18 @@ class Room:
 
     def __init__(self):
         self.potential_strength = 3
-        self.dimX = 13
-        self.dimY = 7
+        self.dimX = 13*3
+        self.dimY = 7*3
         self.cells = []
         self.alpha = 1
-        self.beta = 1
-        self.gamma = 1
-        self.mu = 1
+        self.beta = 0.8
+        self.gamma = 0.2
+        self.mu = 0.33
 
     def initialize_cells(self):
-        self.cells = [[Cell() for j in range(self.dimX)]
-                      for i in range(self.dimY)]
+        self.cells = [[Cell() for j in range(self.dimY)]
+                      for i in range(self.dimX)]
+        self.cells[-1][int(self.dimY/2)].type = 3
 
     def closest_exit(self, i, j):
         min_d = float('inf')
@@ -44,7 +45,10 @@ class Room:
 
     def get_distance(self, i, j):
         sortieX, sortieY = self.closest_exit(i, j)
-        return math.sqrt((10*(sortieY-j)**2)/(sortieX-i)+(sortieX-i)**2)
+        # if i != sortieX:
+        #     return math.sqrt((10*(sortieY-j)**2)/abs(sortieX-i)+(sortieX-i)**2)
+        # return 0
+        return math.sqrt((sortieX-i)**2+(sortieY-j)**2)
 
     def get_potential(self, i, j):
         return -self.potential_strength*self.get_distance(i, j)
@@ -61,7 +65,7 @@ class Room:
         for i in range(self.dimX):
             for j in range(self.dimY):
                 if (i, j) in d:
-                    self.cells[i][j].prediction = d[i][j]
+                    self.cells[i][j].prediction = d[(i, j)]
                 else:
                     self.cells[i][j].prediction = 0
 
@@ -98,12 +102,20 @@ class Room:
     def get_probabilities(self, i, j):
         dic = {(a, b): self.get_unnormalized_prob(i, j, a, b)
                for a in range(-1, 2) for b in range(-1, 2) if self.prob_condition(a, b, i, j)}
-        freq_dist = FreqDist(dic)
-        prob_dist = MLEProbDist(freq_dist)
-        return {c: prob_dist.prob(c) for c in dic}
-
+        # freq_dist = FreqDist(dic)
+        #prob_dist = MLEProbDist(freq_dist)
+        somme = 0
+        for c in dic:
+            somme += dic[c]
+        if somme != 0:
+            prob_dist = {c: dic[c]/somme for c in dic}
+            return prob_dist
+        return {(0, 0) : 0}
     def choose_dir(self, i, j):
         dic = self.get_probabilities(i, j)
+        sortieX, sortieY = self.closest_exit(i, j)
+        if abs(sortieX-i) + abs(sortieY-j) <= 2:
+            return (sortieX-i, sortieY-j)
         if dic == {}:
             return (0, 0)
         return random.choices(list(dic.keys()), weights=list(dic.values()), k=1)[0]
@@ -133,19 +145,22 @@ class Room:
         return []
 
     def move_agent(self, i1, j1, i2, j2):
-        self.cells[i1][j1].bound_to = []
-        self.cells[i1][j1].predicted_direction = (1, 0)
-        self.cells[i1][j1].prediction = 0
-        self.cells[i1][j1].potential = 0
-        self.cells[i1][j1].next_update = 0
-        self.cells[i1][j1].type = 0
-
-        self.cells[i2][j2].bound_to = []
-        self.cells[i2][j2].predicted_direction = (1, 0)
-        self.cells[i2][j2].prediction = 0
-        self.cells[i2][j2].potential = 0
-        self.cells[i2][j2].next_update += 1+0.5*int(abs(i1-i2)+abs(j1-j2) > 1)
-        self.cells[i2][j2].type = 1
+        if i1 == self.dimX-2:
+            print(self.cells[i1][j1].predicted_direction)
+        if self.cells[i1][j1].type == 1 and self.cells[i2][j2].type in (0, 3):
+            self.cells[i1][j1].predicted_direction = (1, 0)
+            self.cells[i1][j1].prediction = 0
+            self.cells[i1][j1].potential = 0
+            self.cells[i1][j1].type = 0
+    
+            self.cells[i2][j2].predicted_direction = (1, 0)
+            self.cells[i2][j2].prediction = 0
+            self.cells[i2][j2].potential = 0
+            self.cells[i2][j2].next_update += 1+0.5*int(abs(i1-i2)+abs(j1-j2)>1)
+            if self.cells[i2][j2].type != 3:
+                self.cells[i2][j2].type = 1
+        if self.cells[i2][j2].type == 3:
+            print("tried to escape")
 
         # We also have to unbound everyone that was bound to the
         # cell that was in i1, j1
@@ -165,6 +180,7 @@ class Room:
                 # One agent is selected to move
                 sX, sY = random.choice(l)
                 self.move_agent(sX, sY, i, j)
+
         elif len(l) == 1:
             # No conflict, the agent moves to the empty cell.
             a, b = l[0]
@@ -181,19 +197,24 @@ class Room:
         self.update_prediction()
         for (i, j) in cells_to_update:
             target_dirX, target_dirY = self.choose_dir(i, j)
-            if (target_dirX, target_dirY) != (0, 0):
-                a, b = i + target_dirX, j + target_dirY
-                self.cells[i][j].predicted_direction = (
-                    target_dirX, target_dirY)
-                if self.cells[i][j].type in (0, 3):
-                    target_cells.append((a, b))
-                    self.cells[i][j].waiting_list.append((i, j))
-                elif self.cells[i][j].type == 1:
-                    target_cells.append((a, b))
-                    self.cells[i][j].bound_to = [(a, b)]
-        for (i, j) in target_cells:
-            w_l = self.cells[i][j].waiting_list
-            self.resolve_conflict(i, j, w_l)
+            
+            a, b = i + target_dirX, j + target_dirY
+            self.cells[i][j].predicted_direction = (
+                target_dirX, target_dirY)
+            if self.cells[i][j].type in (0, 3):
+                target_cells.append((a, b))
+                self.cells[a][b].waiting_list.append((i, j))
+            elif self.cells[i][j].type == 1:
+                target_cells.append((a, b))
+                self.cells[i][j].bound_to = [(a, b)]
+                self.cells[a][b].waiting_list.append((i, j))
+
+                self.cells[i][j].bound_to = [(a, b)]
+        for i in range(self.dimX):
+            for j in range(self.dimY):
+        # for (i, j) in target_cells:
+                w_l = self.cells[i][j].waiting_list
+                self.resolve_conflict(i, j, w_l)
 
 
 ###TESTING
@@ -203,24 +224,32 @@ def get_array_to_display(piece):
 
 def populate(piece, n):
     for _ in range(n):
-        i = random.randint(0, math.floor(piece.dimX/2)-1)
+        i = random.randint(0, int(piece.dimX/2)-1)
         j = random.randint(0, piece.dimY-1)
         while piece.cells[i][j].type != 0:
-            i = random.randint(0, math.floor(piece.dimX/2)-1)
+            i = random.randint(0, int(piece.dimX/2)-1)
             j = random.randint(0, piece.dimY-1)
         piece.cells[i][j].type = 1
     for i in range(piece.dimY):
         if piece.cells[-1][i].type == 0:
-            piece.cells[-1][i].type = 1
+            piece.cells[-1][i].type = 2
 
 def test_model(iter, n):
     piece = Room()
+    piece.initialize_cells()
     plt.figure()
-    plt.show()
     populate(piece, n)
     arr = []
-    for _ in iter:
+    for _ in range(iter):
+        cter = 0
         arr = get_array_to_display(piece)
+        for e in arr:
+            for c in e:
+                if c == 2:
+                    cter += 1
         piece.update_cells()
         plt.imshow(arr, cmap = 'binary')
+        plt.show()
+        print(cter)
     
+test_model(1000, 150)
