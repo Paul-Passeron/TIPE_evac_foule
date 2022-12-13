@@ -2,13 +2,14 @@ import math
 import random
 from nltk.probability import FreqDist, MLEProbDist
 
+
 class Cell:
 
     def __init__(self):
         self.type = 0  # 0 -> floor | 1 -> occupied | 2 -> wall | 3 -> exit
         self.waiting_list = []
         self.bound_to = []
-        self.predicted_direction = (1, 0)
+        self.predicted_direction = (int(1), int(0))
         self.prediction = 0
         self.potential = 0
         self.next_update = 0.0
@@ -92,15 +93,23 @@ class Room:
             return res
         return 0
 
+    def prob_condition(self, a, b, i, j):
+        res = (a != b or a != 0 and self.get_unnormalized_prob(i, j, a, b) > 0)
+        res = res and self.is_in_bounds(
+            i+a, j+b) and self.cells[i+a][j+b].type != 2
+        return res
+
     def get_probabilities(self, i, j):
         dic = {(a, b): self.get_unnormalized_prob(i, j, a, b)
-               for a in range(-1, 2) for b in range(-1, 2) if (a != b or a != 0 and self.get_unnormalized_prob(i, j, a, b) > 0)}
+               for a in range(-1, 2) for b in range(-1, 2) if self.prob_condition(a, b, i, j)}
         freq_dist = FreqDist(dic)
         prob_dist = MLEProbDist(freq_dist)
         return {c: prob_dist.prob(c) for c in dic}
 
     def choose_dir(self, i, j):
         dic = self.get_probabilities(i, j)
+        if dic == {}:
+            return (0, 0)
         return random.choices(list(dic.keys()), weights=list(dic.values()), k=1)[0]
 
     def get_cells_bound_to(self, i, j):
@@ -111,7 +120,6 @@ class Room:
                     L.append((x, y))
         return L
 
-    
     def get_agent_to_update(self):
         dic = {}
         for i in range(self.dimX):
@@ -128,7 +136,6 @@ class Room:
             return dic[sorted_keys[0]]
         return []
 
-
     def move_agent(self, i1, j1, i2, j2):
         self.cells[i1][j1].bound_to = []
         self.cells[i1][j1].predicted_direction = (1, 0)
@@ -141,24 +148,57 @@ class Room:
         self.cells[i2][j2].predicted_direction = (1, 0)
         self.cells[i2][j2].prediction = 0
         self.cells[i2][j2].potential = 0
-        self.cells[i2][j2].next_update += 1+0.5*int(abs(i1-i2)+abs(j1-j2)>1)
+        self.cells[i2][j2].next_update += 1+0.5*int(abs(i1-i2)+abs(j1-j2) > 1)
         self.cells[i2][j2].type = 1
 
-    def resolve_conflict(self, i, j, l, depth = 0):
+        # We also have to unbound everyone that was bound to the
+        # cell that was in i1, j1
+
+    def unbound_cells(self, i, j):
+        bound_cells = self.get_cells_bound_to(i, j)
+        for (a, b) in bound_cells:
+            self.cells[a][b].bound_to = []
+
+    def resolve_conflict(self, i, j, l, depth=0):
         max_depth = 4
         if depth >= max_depth:
             return True
         rand_float = random.random()
         if len(l) > 1:
             if rand_float > self.mu:
-                #One agent is selected to move
+                # One agent is selected to move
                 sX, sY = random.choice(l)
                 self.move_agent(sX, sY, i, j)
         elif len(l) == 1:
-            #No conflict, the agent moves to the empty cell.
+            # No conflict, the agent moves to the empty cell.
             a, b = l[0]
             self.move_agent(i, j, a, b)
-            self.resolve_conflict(i, j, self.get_cells_bound_to(i, j), depth+1)      
+            self.resolve_conflict(i, j, self.get_cells_bound_to(i, j), depth+1)
+            # maybe unbound here
+            self.unbound_cells(i, j)  # So is max recursion depth 1 ???
         return True
 
-    
+    def update_cells(self):
+        # decision process
+        cells_to_update = self.get_agent_to_update()
+        target_cells = []
+        self.update_prediction()
+        for (i, j) in cells_to_update:
+            target_dirX, target_dirY = self.choose_dir(i, j)
+            if (target_dirX, target_dirY) != (0, 0):
+                a, b = i + target_dirX, j + target_dirY
+                self.cells[i][j].predicted_direction = (
+                    target_dirX, target_dirY)
+                    
+                if self.cells[i][j].type in (0, 3):
+                    target_cells.append((a, b))
+                    self.cells[i][j].waiting_list.append((i, j))
+                elif self.cells[i][j].type == 1:
+                    target_cells.append((a, b))
+                    self.cells[i][j].bound_to = [(a, b)]
+        for (i, j) in target_cells:
+            w_l = self.cells[i][j].waiting_list
+            self.resolve_conflict(i, j, w_l)
+        
+
+
