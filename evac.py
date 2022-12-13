@@ -1,7 +1,7 @@
 import math
 import random
 from nltk.probability import FreqDist, MLEProbDist
-
+import matplotlib.pyplot as plt
 
 class Cell:
 
@@ -13,10 +13,6 @@ class Cell:
         self.prediction = 0
         self.potential = 0
         self.next_update = 0.0
-
-    def get_reaction_surrounding(self):
-        return [[(-1, 1), (0, 1), (1, 1)], [(-1, 0), (0, 0), (1, 0)],  [(-1, -1), (0, -1), (1, -1)]]
-
 
 class Room:
 
@@ -189,7 +185,6 @@ class Room:
                 a, b = i + target_dirX, j + target_dirY
                 self.cells[i][j].predicted_direction = (
                     target_dirX, target_dirY)
-                    
                 if self.cells[i][j].type in (0, 3):
                     target_cells.append((a, b))
                     self.cells[i][j].waiting_list.append((i, j))
@@ -199,6 +194,33 @@ class Room:
         for (i, j) in target_cells:
             w_l = self.cells[i][j].waiting_list
             self.resolve_conflict(i, j, w_l)
-        
 
 
+###TESTING
+
+def get_array_to_display(piece):
+    return [[3-piece.cells[i][j].type for i in range(piece.dimX)]for j in range(piece.dimY)]
+
+def populate(piece, n):
+    for _ in range(n):
+        i = random.randint(0, math.floor(piece.dimX/2)-1)
+        j = random.randint(0, piece.dimY-1)
+        while piece.cells[i][j].type != 0:
+            i = random.randint(0, math.floor(piece.dimX/2)-1)
+            j = random.randint(0, piece.dimY-1)
+        piece.cells[i][j].type = 1
+    for i in range(piece.dimY):
+        if piece.cells[-1][i].type == 0:
+            piece.cells[-1][i].type = 1
+
+def test_model(iter, n):
+    piece = Room()
+    plt.figure()
+    plt.show()
+    populate(piece, n)
+    arr = []
+    for _ in iter:
+        arr = get_array_to_display(piece)
+        piece.update_cells()
+        plt.imshow(arr, cmap = 'binary')
+    
