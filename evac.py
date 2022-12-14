@@ -45,10 +45,10 @@ class Room:
 
     def get_distance(self, i, j):
         sortieX, sortieY = self.closest_exit(i, j)
-        # if i != sortieX:
-        #     return math.sqrt((10*(sortieY-j)**2)/abs(sortieX-i)+(sortieX-i)**2)
-        # return 0
-        return math.sqrt((sortieX-i)**2+(sortieY-j)**2)
+        if i != sortieX:
+            return math.sqrt((10*(sortieY-j)**2)/abs(sortieX-i)+(sortieX-i)**2)
+        return 0
+        # return math.sqrt((sortieX-i)**2+(sortieY-j)**2)
 
     def get_potential(self, i, j):
         return -self.potential_strength*self.get_distance(i, j)
@@ -145,8 +145,6 @@ class Room:
         return []
 
     def move_agent(self, i1, j1, i2, j2):
-        if i1 == self.dimX-2:
-            print(self.cells[i1][j1].predicted_direction)
         if self.cells[i1][j1].type == 1 and self.cells[i2][j2].type in (0, 3):
             self.cells[i1][j1].predicted_direction = (1, 0)
             self.cells[i1][j1].prediction = 0
@@ -159,8 +157,6 @@ class Room:
             self.cells[i2][j2].next_update += 1+0.5*int(abs(i1-i2)+abs(j1-j2)>1)
             if self.cells[i2][j2].type != 3:
                 self.cells[i2][j2].type = 1
-        if self.cells[i2][j2].type == 3:
-            print("tried to escape")
 
         # We also have to unbound everyone that was bound to the
         # cell that was in i1, j1
@@ -237,7 +233,7 @@ def populate(piece, n):
 def test_model(iter, n):
     piece = Room()
     piece.initialize_cells()
-    plt.figure()
+    # plt.figure()
     populate(piece, n)
     arr = []
     for _ in range(iter):
@@ -250,6 +246,7 @@ def test_model(iter, n):
         piece.update_cells()
         plt.imshow(arr, cmap = 'binary')
         plt.show()
-        print(cter)
+        if cter == 0:
+            break
     
 test_model(1000, 150)
