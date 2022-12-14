@@ -18,8 +18,8 @@ class Room:
 
     def __init__(self):
         self.potential_strength = 3
-        self.dimX = 13*3
-        self.dimY = 7*3
+        self.dimX = 13*2
+        self.dimY = 7*2
         self.cells = []
         self.alpha = 1
         self.beta = 0.8
@@ -30,6 +30,8 @@ class Room:
         self.cells = [[Cell() for j in range(self.dimY)]
                       for i in range(self.dimX)]
         self.cells[-1][int(self.dimY/2)].type = 3
+        self.cells[-1][int(self.dimY/2+1)].type = 3
+
 
     def closest_exit(self, i, j):
         min_d = float('inf')
@@ -219,6 +221,10 @@ def get_array_to_display(piece):
     return [[3-piece.cells[i][j].type for i in range(piece.dimX)]for j in range(piece.dimY)]
 
 def populate(piece, n):
+    piece.cells[int(piece.dimX-3)][int(piece.dimY/2)].type = 2
+    piece.cells[int(piece.dimX-3)][int(piece.dimY/2)+1].type = 2
+    piece.cells[int(piece.dimX-3)][int(piece.dimY/2)-1].type = 2
+
     for _ in range(n):
         i = random.randint(0, int(piece.dimX/2)-1)
         j = random.randint(0, piece.dimY-1)
@@ -229,6 +235,8 @@ def populate(piece, n):
     for i in range(piece.dimY):
         if piece.cells[-1][i].type == 0:
             piece.cells[-1][i].type = 2
+
+
 
 def test_model(iter, n):
     piece = Room()
@@ -249,4 +257,4 @@ def test_model(iter, n):
         if cter == 0:
             break
     
-test_model(1000, 150)
+test_model(1000, 100)
